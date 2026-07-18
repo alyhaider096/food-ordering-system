@@ -61,7 +61,7 @@ const transitionMap: Record<DbOrderStatus, DbOrderStatus[]> = {
   READY: [OrderStatus.OUT_FOR_DELIVERY, OrderStatus.COMPLETED, OrderStatus.CANCELLED],
 };
 
-export async function listOrdersForStaff(staff: StaffContext) {
+export async function listOrdersForStaff(staff: StaffContext): Promise<AdminOrderSummary[]> {
   if (canUseDemoFallback()) {
     return getDemoOrdersForRole(staff.role);
   }
@@ -89,7 +89,10 @@ export async function listOrdersForStaff(staff: StaffContext) {
   return orders.map(mapAdminOrderSummary);
 }
 
-export async function getOrderForStaff(staff: StaffContext, orderId: string) {
+export async function getOrderForStaff(
+  staff: StaffContext,
+  orderId: string,
+): Promise<AdminOrderDetail | null> {
   if (canUseDemoFallback()) {
     const order = getDemoOrdersForRole(staff.role).find((candidate) => candidate.id === orderId);
     return order ? demoDetail(order) : null;
