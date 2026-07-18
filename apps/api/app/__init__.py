@@ -1,0 +1,1 @@
+"""Flavour Heaven FastAPI backend."""
