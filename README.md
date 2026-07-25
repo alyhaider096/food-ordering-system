@@ -137,6 +137,7 @@ npm run db:seed
 
 Important database docs:
 
+- [Database Table Concept](docs/database-table-concept.md)
 - [Production Database Schema](docs/production-database-schema.md)
 - [Backend And Frontend Contract](docs/backend-frontend-contract.md)
 

@@ -5,8 +5,11 @@ import {
   PAKISTAN_MOBILE_ERROR,
 } from "@/lib/pakistan-phone";
 import { createPublicOrder, OrderServiceError } from "@/server/orders/order-service";
+import { IdempotencyConflictError, withIdempotentOrderCreate } from "@/server/idempotency";
+import { hashSensitive } from "@/server/security/customer-data";
+import { checkRateLimit, getRequestIp, rateLimitResponse } from "@/server/rate-limit";
 
-const orderSchema = z
+export const orderSchema = z
   .object({
     orderType: z.enum(["delivery", "pickup", "carhop"]),
     customerName: z.string().min(2).max(80),
@@ -19,6 +22,15 @@ const orderSchema = z
         message: PAKISTAN_MOBILE_ERROR,
       })
       .transform((value) => normalizePakistanMobileNumber(value)?.e164 ?? value),
+    alternatePhone: z
+      .string()
+      .trim()
+      .max(24)
+      .optional()
+      .refine((value) => !value || Boolean(normalizePakistanMobileNumber(value)), {
+        message: PAKISTAN_MOBILE_ERROR,
+      })
+      .transform((value) => (value ? normalizePakistanMobileNumber(value)?.display : undefined)),
     deliveryArea: z.string().optional(),
     deliveryLocation: z
       .object({
@@ -70,6 +82,19 @@ const orderSchema = z
   });
 
 export async function POST(request: Request) {
+  const ipLimit = checkRateLimit({
+    key: `order-create-ip:${getRequestIp(request)}`,
+    limit: 6,
+    windowMs: 10 * 60 * 1000,
+  });
+
+  if (!ipLimit.allowed) {
+    return rateLimitResponse(
+      ipLimit.retryAfterMs,
+      "Too many orders submitted from this connection. Please wait a few minutes and try again.",
+    );
+  }
+
   const body = await request.json().catch(() => null);
   const parsed = orderSchema.safeParse(body);
 
@@ -83,13 +108,34 @@ export async function POST(request: Request) {
     );
   }
 
+  const phoneLimit = checkRateLimit({
+    key: `order-create-phone:${hashSensitive(parsed.data.phone)}`,
+    limit: 4,
+    windowMs: 30 * 60 * 1000,
+  });
+
+  if (!phoneLimit.allowed) {
+    return rateLimitResponse(
+      phoneLimit.retryAfterMs,
+      "Too many orders submitted with this phone number. Please wait a few minutes or contact us on WhatsApp.",
+    );
+  }
+
   try {
     const requestUrl = new URL(request.url);
     const origin = request.headers.get("origin") ?? `${requestUrl.protocol}//${requestUrl.host}`;
-    const order = await createPublicOrder(parsed.data, origin);
+    const order = await withIdempotentOrderCreate({
+      idempotencyKey: request.headers.get("Idempotency-Key"),
+      run: () => createPublicOrder(parsed.data, origin),
+      scope: "public_order_create",
+    });
 
     return NextResponse.json(order);
   } catch (error) {
+    if (error instanceof IdempotencyConflictError) {
+      return NextResponse.json({ message: error.message }, { status: 409 });
+    }
+
     return NextResponse.json(
       {
         message: error instanceof Error ? error.message : "Could not create this order.",

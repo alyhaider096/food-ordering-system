@@ -75,6 +75,13 @@ const floatingWhatsappUrl = `https://wa.me/${toWhatsAppPhoneNumber(shopPhone) ??
   "Hi Flavour Heaven, I want to place an order.",
 )}`;
 
+const POPULAR_TAB_ID = "popular";
+const popularTabCategory = {
+  id: POPULAR_TAB_ID,
+  name: "Popular",
+  description: "The items customers come back for.",
+};
+
 function BrandMark({ className, compact = false }: { className?: string; compact?: boolean }) {
   return (
     <div
@@ -102,9 +109,14 @@ function BrandMark({ className, compact = false }: { className?: string; compact
 export function OrderingExperience({ initialMenu }: { initialMenu: PublicMenu }) {
   const { categories, deliveryAreas, items: menuItems } = initialMenu;
   const defaultAreaId = deliveryAreas[0]?.id ?? "";
-  const defaultCategoryId = categories.some((category) => category.id === "popular")
-    ? "popular"
-    : categories[0]?.id ?? "";
+  const popularItems = menuItems.filter((item) => item.isPopular).slice(0, 6);
+  const categoriesWithItems = categories.filter((category) =>
+    menuItems.some((item) => item.categoryId === category.id),
+  );
+  const tabCategories = popularItems.length
+    ? [popularTabCategory, ...categoriesWithItems]
+    : categoriesWithItems;
+  const defaultCategoryId = tabCategories[0]?.id ?? "";
 
   const [hasSelectedOrderSetup, setHasSelectedOrderSetup] = useState(false);
   const [setupOpen, setSetupOpen] = useState(true);
@@ -124,14 +136,13 @@ export function OrderingExperience({ initialMenu }: { initialMenu: PublicMenu })
   const deliveryFee = orderType === "delivery" ? area?.fee ?? 0 : 0;
   const total = subtotal + deliveryFee;
   const qty = cartQuantity(cart);
-  const popularItems = menuItems.filter((item) => item.isPopular).slice(0, 6);
 
   const visibleItems = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     return menuItems.filter((item) => {
       const matchesCategory = normalized.length > 0
         ? true
-        : activeCategory === "popular"
+        : activeCategory === POPULAR_TAB_ID
           ? item.isPopular
           : item.categoryId === activeCategory;
       const matchesQuery =
@@ -254,25 +265,16 @@ export function OrderingExperience({ initialMenu }: { initialMenu: PublicMenu })
         <HeroBanners />
         <CategoryTabs
           activeCategory={activeCategory}
-          categories={categories}
+          categories={tabCategories}
           onChange={handleCategoryChange}
         />
         <SearchStrip onSubmit={scrollToMenu} query={query} setQuery={setQuery} />
         <PromoCard />
 
-        <section className="mt-8">
-          <SectionTitle kicker="The fast movers people keep reordering." title="Popular Items" />
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {popularItems.map((item) => (
-              <MenuItemCard item={item} key={item.id} onOpen={openItem} />
-            ))}
-          </div>
-        </section>
-
-        <section className="mt-10 scroll-mt-32" id="menu" ref={menuSectionRef}>
+        <section className="mt-8 scroll-mt-32" id="menu" ref={menuSectionRef}>
           <CategoryBanner
             activeCategory={activeCategory}
-            categories={categories}
+            categories={tabCategories}
             isSearching={Boolean(query.trim())}
             query={query}
             resultCount={visibleItems.length}
@@ -645,28 +647,35 @@ function HeroBanners() {
   const banner = bannerSlides[0];
 
   return (
-    <section className="animate-fade-up hover-lift overflow-hidden rounded-[28px] border-2 border-[#161616] bg-[#ffdd00] shadow-lift">
-      <div className="relative min-h-[260px] p-6 text-[#161616] sm:min-h-[330px] sm:p-8">
+    <section className="animate-fade-up hover-lift relative overflow-hidden rounded-[28px] border-2 border-[#161616] shadow-lift">
+      <div className="relative min-h-[320px] sm:min-h-[420px]">
         <img
           alt="Flavour Heaven banner"
-          className="absolute inset-y-0 right-0 h-full w-full object-cover opacity-55 mix-blend-multiply"
+          className="absolute inset-0 h-full w-full object-cover"
           src={banner.image}
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#ffdd00] via-[#ffdd00]/90 to-[#ffdd00]/30" />
-        <div className="relative max-w-xl">
-          <p className="inline-flex rounded-full border-2 border-[#161616] bg-white px-4 py-2 text-sm font-black uppercase text-[#161616]">
+        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/45 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+        <div className="relative flex h-full min-h-[320px] flex-col justify-end p-6 sm:min-h-[420px] sm:p-10">
+          <p className="inline-flex w-fit rounded-full border-2 border-[#161616] bg-[#ffdd00] px-4 py-2 text-sm font-black uppercase text-[#161616]">
             {banner.kicker}
           </p>
-          <h1 className="mt-5 text-4xl font-black leading-tight text-[#161616] sm:text-6xl">
+          <h1 className="mt-5 max-w-xl text-4xl font-black leading-tight text-white [text-shadow:0_4px_18px_rgba(0,0,0,0.55)] sm:text-6xl">
             {banner.title}
           </h1>
-          <p className="mt-4 max-w-md text-sm font-black leading-6 text-[#3d3d3d]">
+          <p className="mt-4 max-w-md text-sm font-bold leading-6 text-white/90">
             Free delivery inside E-11. Fast pickup and car-hop from E-11/3 Markaz. No hidden fees at checkout.
           </p>
           <div className="mt-6 flex flex-wrap gap-3 text-xs font-black uppercase">
-            <span className="hover-lift rounded-full border-2 border-[#161616] bg-white px-4 py-2">Open 24/7</span>
-            <span className="hover-lift rounded-full border-2 border-[#161616] bg-white px-4 py-2">Cash on delivery</span>
-            <span className="hover-lift rounded-full border-2 border-[#161616] bg-white px-4 py-2">WhatsApp handoff</span>
+            <span className="hover-lift rounded-full border-2 border-white/50 bg-black/40 px-4 py-2 text-white backdrop-blur">
+              Open 24/7
+            </span>
+            <span className="hover-lift rounded-full border-2 border-white/50 bg-black/40 px-4 py-2 text-white backdrop-blur">
+              Cash on delivery
+            </span>
+            <span className="hover-lift rounded-full border-2 border-white/50 bg-black/40 px-4 py-2 text-white backdrop-blur">
+              WhatsApp handoff
+            </span>
           </div>
         </div>
       </div>
@@ -773,18 +782,6 @@ function PromoCard() {
         </div>
       </div>
     </section>
-  );
-}
-
-function SectionTitle({ kicker, title }: { kicker: string; title: string }) {
-  return (
-    <div>
-      <div className="flex items-center gap-2">
-        <Flame className="text-[#161616]" size={28} />
-        <h2 className="text-3xl font-black text-[#161616]">{title}</h2>
-      </div>
-      <p className="mt-2 text-base font-bold text-[#5f5f5f]">{kicker}</p>
-    </div>
   );
 }
 
@@ -997,6 +994,7 @@ type CreatedOrder = {
   };
   trackingUrl: string;
   whatsappUrl: string;
+  deliveryMapUrl?: string | null;
 };
 
 function CartDrawer({
@@ -1029,6 +1027,7 @@ function CartDrawer({
   const subtotal = cartSubtotal(cart);
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
+  const [alternatePhone, setAlternatePhone] = useState("");
   const [address, setAddress] = useState("");
   const [landmark, setLandmark] = useState("");
   const [carDetails, setCarDetails] = useState("");
@@ -1041,6 +1040,7 @@ function CartDrawer({
   const [createdOrder, setCreatedOrder] = useState<CreatedOrder | null>(null);
   const [submitError, setSubmitError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
   const normalizedPhone = useMemo(() => normalizePakistanMobileNumber(phone), [phone]);
   const phoneError = phone.trim() && !normalizedPhone ? PAKISTAN_MOBILE_ERROR : "";
 
@@ -1091,6 +1091,7 @@ function CartDrawer({
     const response = await fetch("/api/public/orders", {
       body: JSON.stringify({
         address: orderType === "delivery" ? address : undefined,
+        alternatePhone: alternatePhone.trim() || undefined,
         carDetails: orderType === "carhop" ? carDetails : undefined,
         customerName,
         deliveryArea: orderType === "delivery" ? areaId : undefined,
@@ -1105,7 +1106,7 @@ function CartDrawer({
         orderType,
         phone: normalizedPhone.e164,
       }),
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
       method: "POST",
     }).catch(() => null);
 
@@ -1167,6 +1168,16 @@ function CartDrawer({
                 >
                   <MessageCircle size={18} /> Send on WhatsApp
                 </a>
+                {createdOrder.deliveryMapUrl ? (
+                  <a
+                    className="hover-lift icon-bounce focus-ring inline-flex items-center justify-center gap-2 rounded-[18px] border border-[#bbf7d0] bg-white px-4 py-3 font-black text-[#166534]"
+                    href={createdOrder.deliveryMapUrl}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    <LocateFixed size={18} /> Open my location in Maps
+                  </a>
+                ) : null}
                 <a
                   className="hover-lift icon-bounce focus-ring inline-flex items-center justify-center gap-2 rounded-[18px] border border-[#bbf7d0] bg-white px-4 py-3 font-black text-[#166534]"
                   href={createdOrder.trackingUrl}
@@ -1178,6 +1189,7 @@ function CartDrawer({
                   onClick={() => {
                     clearCart();
                     setCreatedOrder(null);
+                    setIdempotencyKey(crypto.randomUUID());
                     onStartAnotherOrder();
                   }}
                   type="button"
@@ -1281,6 +1293,8 @@ function CartDrawer({
               {cart.length ? (
                 <CheckoutForm
                   address={address}
+                  alternatePhone={alternatePhone}
+                  setAlternatePhone={setAlternatePhone}
                   carDetails={carDetails}
                   customerName={customerName}
                   instructions={instructions}
@@ -1314,6 +1328,8 @@ function CartDrawer({
 
 function CheckoutForm({
   address,
+  alternatePhone,
+  setAlternatePhone,
   areaLabel,
   carDetails,
   customerName,
@@ -1337,6 +1353,8 @@ function CheckoutForm({
   submitOrder,
 }: {
   address: string;
+  alternatePhone: string;
+  setAlternatePhone: (value: string) => void;
   areaLabel: string;
   carDetails: string;
   customerName: string;
@@ -1417,6 +1435,24 @@ function CheckoutForm({
               : "Use 03xx-xxxxxxx or +92 3xx xxxxxxx."}
           </p>
         )}
+        <p className="mt-1 text-xs text-[#78716c]">
+          We will contact you on this number for order updates - please make sure it is correct
+          and reachable.
+        </p>
+      </label>
+
+      <label className="block">
+        <span className="text-sm font-black text-[#161616]">
+          Additional contact number <span className="font-bold text-[#78716c]">(optional)</span>
+        </span>
+        <input
+          className="hover-lift focus-ring mt-2 w-full rounded-[14px] border-2 border-[#f0d447] bg-white px-4 py-3 font-bold text-[#161616]"
+          inputMode="tel"
+          maxLength={24}
+          onChange={(event) => setAlternatePhone(event.target.value)}
+          placeholder="A backup number, if the first is unreachable"
+          value={alternatePhone}
+        />
       </label>
 
       {orderType === "delivery" ? (

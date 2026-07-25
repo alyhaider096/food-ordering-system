@@ -1,5 +1,7 @@
 ﻿import { OrderStatus } from "@prisma/client";
 import { BarChart3, Bell, Bike, ClipboardList, ShieldCheck, Soup, Users } from "lucide-react";
+import { LiveOrderWatcher } from "@/components/admin/live-order-watcher";
+import { can } from "@/server/auth/permissions";
 import { requireAdminPage } from "@/server/auth/session";
 import { listOrdersForStaff } from "@/server/orders/admin-order-service";
 import { formatOrderStatus } from "@/server/orders/order-service";
@@ -48,6 +50,15 @@ export default async function AdminDashboardPage() {
             <p className="mt-2 text-sm font-semibold text-[#78716c]">
               Signed in as {session.user.name} - {session.user.role.replaceAll("_", " ")}
             </p>
+            <div className="mt-3">
+              <LiveOrderWatcher
+                initialOrders={orders.map((order) => ({
+                  id: order.id,
+                  reference: order.reference,
+                  status: order.status,
+                }))}
+              />
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <a
@@ -68,6 +79,22 @@ export default async function AdminDashboardPage() {
             >
               Kitchen board
             </a>
+            {can(session.user.role, "orders:create_manual") ? (
+              <a
+                className="rounded-2xl bg-[#161616] px-4 py-2 font-black text-white"
+                href="/admin/orders/new"
+              >
+                New order
+              </a>
+            ) : null}
+            {can(session.user.role, "staff:manage") ? (
+              <a
+                className="rounded-2xl border border-[#e7e5e4] bg-white px-4 py-2 font-bold text-[#57534e]"
+                href="/admin/staff"
+              >
+                Staff &amp; roles
+              </a>
+            ) : null}
           </div>
         </div>
       </header>

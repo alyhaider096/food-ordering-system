@@ -1,4 +1,8 @@
-﻿import { ImageIcon, Pencil, Utensils } from "lucide-react";
+﻿import { ImageIcon, Utensils } from "lucide-react";
+import { CategoryManager } from "@/components/admin/category-manager";
+import { DeliveryZoneManager } from "@/components/admin/delivery-zone-manager";
+import { MenuItemCreateForm } from "@/components/admin/menu-item-create-form";
+import { MenuItemEditor } from "@/components/admin/menu-item-editor";
 import { formatPrice } from "@/lib/cart";
 import { requireAdminPage } from "@/server/auth/session";
 import { listAdminMenu } from "@/server/menu/admin-menu-service";
@@ -33,6 +37,11 @@ export default async function AdminMenuPage() {
 
       <section className="fh-container grid gap-6 py-6 lg:grid-cols-[1fr_340px]">
         <div className="space-y-4">
+          {menu.source === "database" ? (
+            <MenuItemCreateForm
+              categories={menu.categories.map((category) => ({ id: category.id, name: category.name }))}
+            />
+          ) : null}
           {menu.items.map((item) => (
             <article className="rounded-2xl border border-[#e7e5e4] bg-white p-4" key={item.id}>
               <div className="grid gap-4 md:grid-cols-[160px_1fr_auto]">
@@ -83,12 +92,7 @@ export default async function AdminMenuPage() {
                 <div className="flex flex-col items-start gap-3 md:items-end">
                   <p className="text-2xl font-black text-[#161616]">{formatPrice(item.basePricePkr)}</p>
                   <p className="text-sm font-semibold text-[#78716c]">{item.preparationMinutes} min prep</p>
-                  <button
-                    className="inline-flex items-center gap-2 rounded-2xl border border-[#f1d400] bg-[#fff9dc] px-4 py-2 font-black text-[#161616]"
-                    type="button"
-                  >
-                    <Pencil size={16} /> API ready
-                  </button>
+                  {menu.source === "database" ? <MenuItemEditor item={item} /> : null}
                 </div>
               </div>
             </article>
@@ -101,30 +105,38 @@ export default async function AdminMenuPage() {
               <Utensils className="text-[#ffdd00]" />
               <h2 className="font-black text-[#292524]">Categories</h2>
             </div>
-            <div className="mt-4 grid gap-2">
-              {menu.categories.map((category) => (
-                <div className="rounded-2xl bg-[#fafaf9] p-3" key={category.id}>
-                  <p className="font-black text-[#292524]">{category.name}</p>
-                  {"description" in category && category.description ? (
-                    <p className="mt-1 text-sm text-[#78716c]">{category.description}</p>
-                  ) : null}
-                </div>
-              ))}
-            </div>
+            {menu.source === "database" ? (
+              <CategoryManager categories={menu.categories} />
+            ) : (
+              <div className="mt-4 grid gap-2">
+                {menu.categories.map((category) => (
+                  <div className="rounded-2xl bg-[#fafaf9] p-3" key={category.id}>
+                    <p className="font-black text-[#292524]">{category.name}</p>
+                    {"description" in category && category.description ? (
+                      <p className="mt-1 text-sm text-[#78716c]">{category.description}</p>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
 
           <section className="rounded-2xl border border-[#f1d400] bg-[#fff9dc] p-4">
             <h2 className="font-black text-[#292524]">Delivery zones</h2>
-            <div className="mt-4 grid gap-2">
-              {menu.deliveryAreas.map((zone) => (
-                <div className="rounded-2xl bg-white p-3" key={zone.id}>
-                  <p className="font-black text-[#292524]">{"areaLabel" in zone ? zone.areaLabel : zone.label}</p>
-                  <p className="mt-1 text-sm text-[#78716c]">
-                    {formatPrice("feePkr" in zone ? zone.feePkr : zone.fee)} - {"estimatedMinutes" in zone ? `${zone.estimatedMinutes} min` : zone.eta}
-                  </p>
-                </div>
-              ))}
-            </div>
+            {menu.source === "database" ? (
+              <DeliveryZoneManager zones={menu.deliveryAreas} />
+            ) : (
+              <div className="mt-4 grid gap-2">
+                {menu.deliveryAreas.map((zone) => (
+                  <div className="rounded-2xl bg-white p-3" key={zone.id}>
+                    <p className="font-black text-[#292524]">{zone.label}</p>
+                    <p className="mt-1 text-sm text-[#78716c]">
+                      {formatPrice(zone.fee)} - {zone.eta}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
         </aside>
       </section>

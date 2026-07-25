@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { randomUUID, timingSafeEqual } from "crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
 import { OrderStatus, Prisma, type OrderType as DbOrderType } from "@prisma/client";
@@ -36,6 +36,7 @@ export type PublicOrderInput = {
   orderType: OrderType;
   customerName: string;
   phone: string;
+  alternatePhone?: string;
   deliveryArea?: string;
   deliveryLocation?: DeliveryLocation;
   address?: string;
@@ -58,6 +59,7 @@ export type PublicOrderResponse = {
   };
   trackingUrl: string;
   whatsappUrl: string;
+  deliveryMapUrl?: string | null;
 };
 
 export type TrackingOrder = {
@@ -102,6 +104,15 @@ const dbOrderTypeToPublic: Record<DbOrderType, OrderType> = {
   PICK_UP: "pickup",
 };
 
+function constantTimeEquals(a: string, b: string) {
+  const bufferA = Buffer.from(a);
+  const bufferB = Buffer.from(b);
+
+  if (bufferA.length !== bufferB.length) return false;
+
+  return timingSafeEqual(bufferA, bufferB);
+}
+
 export function formatOrderStatus(status: string) {
   return status
     .toLowerCase()
@@ -113,6 +124,7 @@ export function formatOrderStatus(status: string) {
 export async function createPublicOrder(
   input: PublicOrderInput,
   origin: string,
+  staffContext?: { id: string },
 ): Promise<PublicOrderResponse> {
   if (canUseDemoFallback()) {
     return createDemoOrder(input, origin);
@@ -154,6 +166,7 @@ export async function createPublicOrder(
         addressEnc: input.address ? encryptSensitive(input.address.trim()) : undefined,
         businessId: context.businessId,
         carDetails: input.carDetails?.trim() || undefined,
+        createdByStaffId: staffContext?.id,
         customerId: customer.id,
         deliveryArea: calculated.deliveryArea?.label,
         deliveryFeePkr: calculated.totals.deliveryFee,
@@ -165,10 +178,12 @@ export async function createPublicOrder(
         discountPkr: 0,
         estimatedReadyAt,
         instructions: input.instructions?.trim() || undefined,
+        internalNote: input.alternatePhone ? `Alt contact: ${input.alternatePhone}` : undefined,
         landmark: input.landmark?.trim() || undefined,
         orderType: orderTypeToDb[input.orderType],
         outletId: context.outletId,
         reference,
+        source: staffContext ? "staff_manual" : "public_website",
         status: OrderStatus.PENDING,
         subtotalPkr: calculated.totals.subtotal,
         totalPkr: calculated.totals.total,
@@ -238,11 +253,12 @@ export async function createPublicOrder(
     await tx.auditLog.create({
       data: {
         action: "ORDER_CREATED",
+        actorUserId: staffContext?.id,
         entityId: order.id,
         entityType: "Order",
         metadata: {
           orderType: input.orderType,
-          source: "public_website",
+          source: staffContext ? "staff_manual" : "public_website",
           totalPkr: calculated.totals.total,
           hasGpsLocation: Boolean(deliveryLocation),
         },
@@ -288,7 +304,7 @@ export async function getOrderTracking(reference: string, token?: string | null)
       where: { reference },
   });
 
-  if (!order || order.trackingTokenHash !== hashSensitive(token)) return null;
+  if (!order || !constantTimeEquals(order.trackingTokenHash, hashSensitive(token))) return null;
 
   return {
     createdAt: order.createdAt.toISOString(),
@@ -557,6 +573,9 @@ function buildPublicOrderResponse({
   });
 
   return {
+    deliveryMapUrl: input.deliveryLocation
+      ? `https://maps.google.com/?q=${input.deliveryLocation.latitude},${input.deliveryLocation.longitude}`
+      : null,
     lines,
     persisted,
     reference,

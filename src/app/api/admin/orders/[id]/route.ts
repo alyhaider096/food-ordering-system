@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { AuthError, requireApiStaff } from "@/server/auth/session";
+import { canUseDemoFallback } from "@/server/db/prisma";
 import { getOrderForStaff } from "@/server/orders/admin-order-service";
+import { isUuid } from "@/server/validation/route-params";
 
 export async function GET(
   _request: Request,
@@ -9,6 +11,11 @@ export async function GET(
   try {
     const staff = await requireApiStaff("orders:view");
     const { id } = await params;
+
+    if (!canUseDemoFallback() && !isUuid(id)) {
+      return NextResponse.json({ message: "Order not found." }, { status: 404 });
+    }
+
     const order = await getOrderForStaff(staff, id);
 
     if (!order) {

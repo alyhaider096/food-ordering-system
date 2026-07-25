@@ -1,5 +1,6 @@
-﻿import { LocateFixed, MessageCircle, Phone } from "lucide-react";
+﻿import { LocateFixed, MessageCircle, Phone, Send } from "lucide-react";
 import { notFound } from "next/navigation";
+import { LocationRepin } from "@/components/admin/location-repin";
 import { OrderStatusActions } from "@/components/admin/order-status-actions";
 import { RiderAssignment } from "@/components/admin/rider-assignment";
 import { formatPrice } from "@/lib/cart";
@@ -140,6 +141,14 @@ export default async function AdminOrderDetailPage({
                 <p className="mt-1 text-sm text-[#57534e]">{order.instructions}</p>
               </div>
             ) : null}
+            {order.internalNote ? (
+              <div className="mt-4 rounded-2xl border border-[#e7e5e4] bg-[#fafaf9] p-3">
+                <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#78716c]">
+                  Staff-only note
+                </p>
+                <p className="mt-1 text-sm text-[#57534e]">{order.internalNote}</p>
+              </div>
+            ) : null}
             {order.deliveryMapUrl ? (
               <a
                 className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#16a34a] px-4 py-3 font-black text-white"
@@ -156,6 +165,18 @@ export default async function AdminOrderDetailPage({
                 GPS accuracy about {order.gpsAccuracyMeters} meters.
               </p>
             ) : null}
+            {order.riderShareLocationUrl ? (
+              <a
+                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-[#e7e5e4] bg-white px-4 py-3 font-black text-[#292524]"
+                href={order.riderShareLocationUrl}
+                rel="noreferrer"
+                target="_blank"
+              >
+                <Send size={18} />
+                Share pin with rider
+              </a>
+            ) : null}
+            {order.orderType === "DELIVERY" ? <LocationRepin orderId={order.id} /> : null}
           </section>
           {canAssignRider ? (
             <RiderAssignment currentRiderName={order.riderName} orderId={order.id} />

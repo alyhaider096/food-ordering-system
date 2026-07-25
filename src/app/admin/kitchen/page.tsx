@@ -1,7 +1,8 @@
 ﻿import { Clock, Flame } from "lucide-react";
+import { LiveOrderWatcher } from "@/components/admin/live-order-watcher";
 import { OrderStatusActions } from "@/components/admin/order-status-actions";
 import { requireAdminPage } from "@/server/auth/session";
-import { getOrderForStaff, listOrdersForStaff } from "@/server/orders/admin-order-service";
+import { listOrderDetailsForStaff } from "@/server/orders/admin-order-service";
 
 export const dynamic = "force-dynamic";
 
@@ -13,10 +14,7 @@ export default async function KitchenBoardPage() {
     name: session.user.name ?? "Staff",
     role: session.user.role,
   };
-  const summaries = await listOrdersForStaff(staff);
-  const orders = (await Promise.all(summaries.map((order) => getOrderForStaff(staff, order.id)))).filter(
-    (order): order is NonNullable<typeof order> => Boolean(order),
-  );
+  const orders = await listOrderDetailsForStaff(staff);
 
   return (
     <main className="min-h-screen bg-[#1c1917] text-white">
@@ -30,6 +28,15 @@ export default async function KitchenBoardPage() {
             <p className="mt-2 text-sm text-white/70">
               Kitchen role sees confirmed, preparing, and ready orders only.
             </p>
+            <div className="mt-3">
+              <LiveOrderWatcher
+                initialOrders={orders.map((order) => ({
+                  id: order.id,
+                  reference: order.reference,
+                  status: order.status,
+                }))}
+              />
+            </div>
           </div>
           <a className="rounded-2xl bg-white px-4 py-2 font-black text-[#292524]" href="/admin">
             Back to admin

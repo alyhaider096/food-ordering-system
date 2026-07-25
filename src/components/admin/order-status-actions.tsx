@@ -61,6 +61,11 @@ export function OrderStatusActions({
       return;
     }
 
+    const payload = await response.json().catch(() => null);
+    if (payload?.whatsappUrl) {
+      window.open(payload.whatsappUrl, "_blank", "noopener,noreferrer");
+    }
+
     router.refresh();
   }
 
@@ -78,7 +83,8 @@ export function OrderStatusActions({
       <p className="font-black text-[#292524]">Status actions</p>
       {nextStatuses.includes("CONFIRMED") ? (
         <p className="mt-2 rounded-2xl border border-[#f1d400] bg-white px-4 py-3 text-sm font-bold text-[#57534e]">
-          Confirming this order updates the database and queues the customer WhatsApp confirmation.
+          Confirming this order opens WhatsApp in a new tab with the confirmation message ready
+          to send to the customer.
         </p>
       ) : null}
       {nextStatuses.includes("CANCELLED") ? (

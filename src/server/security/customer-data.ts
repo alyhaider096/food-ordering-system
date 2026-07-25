@@ -5,12 +5,23 @@ import {
 } from "@/lib/pakistan-phone";
 
 const devSecret = "flavour-heaven-local-development-secret-change-before-production";
+let hasWarnedAboutDevSecret = false;
 
 function customerDataSecret() {
   const configuredSecret = process.env.CUSTOMER_DATA_KEY ?? process.env.NEXTAUTH_SECRET;
 
-  if (!configuredSecret && process.env.NODE_ENV === "production") {
-    throw new Error("CUSTOMER_DATA_KEY must be configured in production.");
+  if (!configuredSecret) {
+    if (process.env.NODE_ENV !== "development") {
+      throw new Error("CUSTOMER_DATA_KEY must be configured outside local development.");
+    }
+
+    if (!hasWarnedAboutDevSecret) {
+      hasWarnedAboutDevSecret = true;
+      console.warn(
+        "CUSTOMER_DATA_KEY is not set - using the insecure local-development fallback secret. " +
+          "Set CUSTOMER_DATA_KEY before deploying anywhere real traffic reaches this app.",
+      );
+    }
   }
 
   return configuredSecret ?? devSecret;

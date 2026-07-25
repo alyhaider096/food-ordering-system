@@ -35,10 +35,12 @@ export type AdminOrderSummary = {
 
 export type AdminOrderDetail = AdminOrderSummary & {
   instructions?: string | null;
+  internalNote?: string | null;
   carDetails?: string | null;
   landmark?: string | null;
   deliveryMapUrl?: string | null;
   gpsAccuracyMeters?: number | null;
+  riderShareLocationUrl?: string | null;
   items: TrackingOrder["lines"];
   events: TrackingOrder["events"];
   nextStatuses: DbOrderStatus[];
@@ -107,7 +109,7 @@ export async function getOrderForStaff(
     include: {
       customer: { select: { name: true } },
       deliveryAssignment: {
-        include: { rider: { select: { name: true } } },
+        include: { rider: { select: { name: true, phone: true } } },
       },
       events: { orderBy: { createdAt: "asc" } },
       items: {
@@ -123,12 +125,21 @@ export async function getOrderForStaff(
 
   if (!order) return null;
 
+  const deliveryMapUrl =
+    order.deliveryLatitude != null && order.deliveryLongitude != null
+      ? `https://maps.google.com/?q=${order.deliveryLatitude},${order.deliveryLongitude}`
+      : null;
+  const riderWhatsappNumber = toWhatsAppPhoneNumber(order.deliveryAssignment?.rider?.phone ?? "");
+
   return {
     ...mapAdminOrderSummary(order),
     carDetails: order.carDetails,
-    deliveryMapUrl:
-      order.deliveryLatitude != null && order.deliveryLongitude != null
-        ? `https://maps.google.com/?q=${order.deliveryLatitude},${order.deliveryLongitude}`
+    deliveryMapUrl,
+    riderShareLocationUrl:
+      deliveryMapUrl && riderWhatsappNumber
+        ? `https://wa.me/${riderWhatsappNumber}?text=${encodeURIComponent(
+            `Customer location for order ${order.reference}: ${deliveryMapUrl}`,
+          )}`
         : null,
     events: order.events.map((event) => ({
       createdAt: event.createdAt.toISOString(),
@@ -136,6 +147,7 @@ export async function getOrderForStaff(
       status: formatOrderStatus(event.toStatus),
     })),
     instructions: order.instructions,
+    internalNote: order.internalNote,
     items: order.items.map((item) => ({
       addOns: item.addOns.map((addOn) => ({
         id: addOn.addOnId ?? addOn.id,
@@ -152,6 +164,76 @@ export async function getOrderForStaff(
     landmark: order.landmark,
     nextStatuses: allowedNextStatuses(staff, order.status, order.orderType),
   } satisfies AdminOrderDetail;
+}
+
+export async function listOrderDetailsForStaff(staff: StaffContext): Promise<AdminOrderDetail[]> {
+  if (canUseDemoFallback()) {
+    return getDemoOrdersForRole(staff.role).map(demoDetail);
+  }
+
+  if (!can(staff.role, "orders:view")) {
+    throw new AuthError("You do not have permission to view orders.", 403);
+  }
+
+  const prisma = getPrisma();
+  const orders = await prisma.order.findMany({
+    include: {
+      customer: { select: { name: true } },
+      deliveryAssignment: {
+        include: { rider: { select: { name: true, phone: true } } },
+      },
+      events: { orderBy: { createdAt: "asc" } },
+      items: {
+        include: { addOns: true },
+        orderBy: { id: "asc" },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+    where: whereForRole(staff),
+  });
+
+  return orders.map((order) => {
+    const deliveryMapUrl =
+      order.deliveryLatitude != null && order.deliveryLongitude != null
+        ? `https://maps.google.com/?q=${order.deliveryLatitude},${order.deliveryLongitude}`
+        : null;
+    const riderWhatsappNumber = toWhatsAppPhoneNumber(order.deliveryAssignment?.rider?.phone ?? "");
+
+    return {
+      ...mapAdminOrderSummary(order),
+      carDetails: order.carDetails,
+      deliveryMapUrl,
+      riderShareLocationUrl:
+        deliveryMapUrl && riderWhatsappNumber
+          ? `https://wa.me/${riderWhatsappNumber}?text=${encodeURIComponent(
+              `Customer location for order ${order.reference}: ${deliveryMapUrl}`,
+            )}`
+          : null,
+      events: order.events.map((event) => ({
+        createdAt: event.createdAt.toISOString(),
+        note: event.note,
+        status: formatOrderStatus(event.toStatus),
+      })),
+      instructions: order.instructions,
+      internalNote: order.internalNote,
+      items: order.items.map((item) => ({
+        addOns: item.addOns.map((addOn) => ({
+          id: addOn.addOnId ?? addOn.id,
+          name: addOn.addOnNameSnapshot,
+          price: addOn.unitPricePkrSnapshot,
+        })),
+        lineTotal: item.lineTotalPkr,
+        menuItemId: item.menuItemId ?? item.id,
+        name: item.itemNameSnapshot,
+        quantity: item.quantity,
+        unitPrice: item.unitPricePkrSnapshot,
+      })),
+      gpsAccuracyMeters: order.deliveryLocationAccuracyMeters,
+      landmark: order.landmark,
+      nextStatuses: allowedNextStatuses(staff, order.status, order.orderType),
+    } satisfies AdminOrderDetail;
+  });
 }
 
 export async function updateOrderStatus({
@@ -176,6 +258,10 @@ export async function updateOrderStatus({
       notificationQueued: nextStatus === OrderStatus.CONFIRMED,
       status: nextStatus,
       statusLabel: formatOrderStatus(nextStatus),
+      whatsappUrl:
+        nextStatus === OrderStatus.CONFIRMED
+          ? "https://wa.me/923001234567?text=" + encodeURIComponent("Demo order confirmed. Add DATABASE_URL for live operations.")
+          : null,
     };
   }
 
@@ -212,6 +298,9 @@ export async function updateOrderStatus({
   if (staff.role === "RIDER" && order.deliveryAssignment?.riderUserId !== staff.id) {
     throw new AuthError("Riders can update only assigned orders.", 403);
   }
+
+  const whatsappPayload =
+    nextStatus === OrderStatus.CONFIRMED ? buildOrderConfirmedWhatsAppPayload(order) : null;
 
   await prisma.$transaction(async (tx) => {
     await tx.order.update({
@@ -271,13 +360,13 @@ export async function updateOrderStatus({
       },
     });
 
-    if (nextStatus === OrderStatus.CONFIRMED) {
+    if (nextStatus === OrderStatus.CONFIRMED && whatsappPayload) {
       await tx.notificationEvent.create({
         data: {
           businessId: order.businessId,
           channel: "WHATSAPP",
           orderId: order.id,
-          payloadJson: buildOrderConfirmedWhatsAppPayload(order),
+          payloadJson: whatsappPayload,
           recipientHash: order.customer.phoneHash,
           templateCode: "order_confirmed_v1",
         },
@@ -289,6 +378,10 @@ export async function updateOrderStatus({
     notificationQueued: nextStatus === OrderStatus.CONFIRMED,
     status: nextStatus,
     statusLabel: formatOrderStatus(nextStatus),
+    whatsappUrl:
+      whatsappPayload?.recipientWhatsappNumber
+        ? `https://wa.me/${whatsappPayload.recipientWhatsappNumber}?text=${encodeURIComponent(whatsappPayload.message)}`
+        : null,
   };
 }
 
@@ -420,6 +513,66 @@ export async function assignRiderToOrder({
     orderId,
     riderName: rider.name,
     riderUserId,
+  };
+}
+
+export async function updateDeliveryLocation({
+  accuracyMeters,
+  latitude,
+  longitude,
+  orderId,
+  staff,
+}: {
+  accuracyMeters?: number;
+  latitude: number;
+  longitude: number;
+  orderId: string;
+  staff: StaffContext;
+}) {
+  if (canUseDemoFallback()) {
+    return { latitude, longitude, orderId, source: "demo" };
+  }
+
+  if (!can(staff.role, "orders:update")) {
+    throw new AuthError("You do not have permission to update this order.", 403);
+  }
+
+  const prisma = getPrisma();
+  const order = await prisma.order.findFirst({
+    select: { id: true, orderType: true },
+    where: { ...whereForRole(staff), id: orderId },
+  });
+
+  if (!order) {
+    throw new AuthError("Order not found.", 404);
+  }
+
+  if (order.orderType !== "DELIVERY") {
+    throw new AuthError("Only delivery orders have a GPS pin.", 400);
+  }
+
+  await prisma.order.update({
+    data: {
+      deliveryLatitude: latitude,
+      deliveryLocationAccuracyMeters: accuracyMeters ? Math.round(accuracyMeters) : null,
+      deliveryLongitude: longitude,
+    },
+    where: { id: orderId },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      action: "ORDER_LOCATION_REPINNED",
+      actorUserId: staff.id,
+      entityId: orderId,
+      entityType: "Order",
+      metadata: { latitude, longitude },
+    },
+  });
+
+  return {
+    deliveryMapUrl: `https://maps.google.com/?q=${latitude},${longitude}`,
+    orderId,
   };
 }
 

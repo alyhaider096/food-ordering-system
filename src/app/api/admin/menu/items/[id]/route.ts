@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { AuthError, requireApiStaff } from "@/server/auth/session";
+import { canUseDemoFallback } from "@/server/db/prisma";
 import { updateMenuItem } from "@/server/menu/admin-menu-service";
+import { isUuid } from "@/server/validation/route-params";
 
 const menuItemPatchSchema = z.object({
   basePricePkr: z.number().int().min(0).max(999_999).optional(),
@@ -29,6 +31,11 @@ export async function PATCH(
   try {
     const staff = await requireApiStaff("menu:edit");
     const { id } = await params;
+
+    if (!canUseDemoFallback() && !isUuid(id)) {
+      return NextResponse.json({ message: "Menu item not found." }, { status: 404 });
+    }
+
     const item = await updateMenuItem(staff, id, parsed.data);
 
     return NextResponse.json({ item });
