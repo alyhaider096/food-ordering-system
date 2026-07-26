@@ -89,6 +89,44 @@ const CART_STORAGE_KEY = "flavour-heaven-cart-v1";
 
 type LocationStatus = "idle" | "loading" | "ready" | "error" | "unsupported";
 
+// Hides the sticky header on scroll-down and brings it back on scroll-up,
+// like a mobile app chrome bar. Always visible near the very top of the page,
+// and a small threshold avoids flicker from sub-pixel/trackpad jitter.
+function useHideHeaderOnScroll() {
+  const [hidden, setHidden] = useState(false);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    lastScrollY.current = window.scrollY;
+    let ticking = false;
+
+    const handleScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(() => {
+        const currentScrollY = window.scrollY;
+        const delta = currentScrollY - lastScrollY.current;
+
+        if (currentScrollY <= 24) {
+          setHidden(false);
+        } else if (delta > 8) {
+          setHidden(true);
+        } else if (delta < -8) {
+          setHidden(false);
+        }
+
+        lastScrollY.current = currentScrollY;
+        ticking = false;
+      });
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  return hidden;
+}
+
 // Shared modal behaviour: lock background scroll while open and close on Escape
 // (when dismissable). onClose is read through a ref so a changing handler identity
 // does not thrash the scroll lock.
@@ -135,6 +173,26 @@ function BrandMark({ className, compact = false }: { className?: string; compact
   );
 }
 
+// lucide-react dropped brand marks, so these two match its 24x24/stroke-2 style
+// by hand for the footer's social row.
+function FacebookIcon({ size = 17 }: { size?: number }) {
+  return (
+    <svg fill="none" height={size} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} viewBox="0 0 24 24" width={size}>
+      <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+    </svg>
+  );
+}
+
+function InstagramIcon({ size = 17 }: { size?: number }) {
+  return (
+    <svg fill="none" height={size} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} viewBox="0 0 24 24" width={size}>
+      <rect height="20" rx="5" ry="5" width="20" x="2" y="2" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+    </svg>
+  );
+}
+
 export function OrderingExperience({ initialMenu }: { initialMenu: PublicMenu }) {
   const { categories, deliveryAreas, items: menuItems } = initialMenu;
   const defaultAreaId = deliveryAreas[0]?.id ?? "";
@@ -163,6 +221,7 @@ export function OrderingExperience({ initialMenu }: { initialMenu: PublicMenu })
   const [locationMessage, setLocationMessage] = useState("");
   const [cartHydrated, setCartHydrated] = useState(false);
   const menuSectionRef = useRef<HTMLElement | null>(null);
+  const headerHidden = useHideHeaderOnScroll();
 
   const area = deliveryAreas.find((item) => item.id === selectedArea) ?? deliveryAreas[0];
   const subtotal = cartSubtotal(cart);
@@ -354,6 +413,7 @@ export function OrderingExperience({ initialMenu }: { initialMenu: PublicMenu })
     <main className="animate-page-in min-h-screen bg-[#fff9dc] text-[#161616]">
       <Header
         cartQuantity={qty}
+        hidden={headerHidden}
         onCartOpen={() => setCartOpen(true)}
         onSearchSubmit={scrollToMenu}
         onSetupOpen={() => setSetupOpen(true)}
@@ -383,6 +443,7 @@ export function OrderingExperience({ initialMenu }: { initialMenu: PublicMenu })
         <CategoryTabs
           activeCategory={activeCategory}
           categories={tabCategories}
+          headerHidden={headerHidden}
           onChange={handleCategoryChange}
         />
         <PromoCard />
@@ -467,6 +528,7 @@ export function OrderingExperience({ initialMenu }: { initialMenu: PublicMenu })
 
 function Header({
   cartQuantity: quantity,
+  hidden,
   onCartOpen,
   onSearchSubmit,
   onSetupOpen,
@@ -476,6 +538,7 @@ function Header({
   setQuery,
 }: {
   cartQuantity: number;
+  hidden: boolean;
   onCartOpen: () => void;
   onSearchSubmit: () => void;
   onSetupOpen: () => void;
@@ -485,7 +548,12 @@ function Header({
   setQuery: (value: string) => void;
 }) {
   return (
-    <header className="sticky top-0 z-40 border-b-2 border-transparent bg-white/96 shadow-[0_8px_28px_rgba(22,22,22,0.08)] backdrop-blur">
+    <header
+      className={cn(
+        "sticky top-0 z-40 border-b-2 border-transparent bg-white/96 shadow-[0_8px_28px_rgba(22,22,22,0.08)] backdrop-blur transition-transform duration-300 ease-in-out",
+        hidden ? "-translate-y-full" : "translate-y-0",
+      )}
+    >
       <div className="mx-auto flex h-16 w-full max-w-[1180px] items-center justify-between gap-3 px-4">
         <a className="group flex items-center gap-2" href="/">
           <BrandMark compact className="hover-lift h-12 w-12 group-hover:-rotate-3" />
@@ -893,14 +961,21 @@ function HeroBanners() {
 function CategoryTabs({
   activeCategory,
   categories,
+  headerHidden,
   onChange,
 }: {
   activeCategory: string;
   categories: PublicMenu["categories"];
+  headerHidden: boolean;
   onChange: (categoryId: string) => void;
 }) {
   return (
-    <div className="sticky top-16 z-30 -mx-4 mt-4 border-y-2 border-transparent bg-white/96 px-4 py-3 shadow-[0_8px_24px_rgba(22,22,22,0.08)] backdrop-blur">
+    <div
+      className={cn(
+        "sticky z-30 -mx-4 mt-4 border-y-2 border-transparent bg-white/96 px-4 py-3 shadow-[0_8px_24px_rgba(22,22,22,0.08)] backdrop-blur transition-[top] duration-300 ease-in-out",
+        headerHidden ? "top-0" : "top-16",
+      )}
+    >
       <div className="menu-scrollbar flex gap-3 overflow-x-auto pb-1">
         {categories.map((category) => (
           <button
@@ -967,49 +1042,49 @@ function CategoryBanner({
     : category?.description;
 
   return (
-    <div className="animate-fade-up overflow-hidden rounded-[28px] border-2 border-transparent bg-[#ffdd00] p-6 text-[#161616] shadow-lift">
-      <p className="inline-flex rounded-full bg-white px-3 py-1 text-sm font-black uppercase text-[#161616]">
+    <div className="animate-fade-up overflow-hidden rounded-[18px] border-2 border-transparent bg-[#ffdd00] p-4 text-[#161616] shadow-lift">
+      <p className="inline-flex rounded-full bg-white px-2.5 py-1 text-xs font-black uppercase text-[#161616]">
         {isSearching ? "Full menu search" : "Now serving"}
       </p>
-      <h2 className="mt-2 text-4xl font-black text-[#161616]">{title}</h2>
-      <p className="mt-2 max-w-xl text-sm font-bold text-[#4f4f4f]">{description}</p>
+      <h2 className="mt-1.5 text-xl font-black text-[#161616]">{title}</h2>
+      <p className="mt-1 max-w-xl text-xs font-bold text-[#4f4f4f]">{description}</p>
     </div>
   );
 }
 
 function MenuItemCard({ item, onOpen }: { item: MenuItem; onOpen: (item: MenuItem) => void }) {
   return (
-    <article className="food-card hover-lift relative overflow-hidden rounded-[22px] border-2 border-transparent bg-white p-4 shadow-[0_8px_28px_rgba(22,22,22,0.08)]">
+    <article className="food-card hover-lift relative overflow-hidden rounded-[16px] border-2 border-transparent bg-white p-3 shadow-[0_8px_28px_rgba(22,22,22,0.08)]">
       {item.isPopular ? (
-        <span className="absolute right-5 top-3 z-10 rounded-full border border-transparent bg-[#ffdd00] px-4 py-1 text-xs font-black text-[#161616]">
+        <span className="absolute right-3 top-2 z-10 rounded-full border border-transparent bg-[#ffdd00] px-2.5 py-0.5 text-[10px] font-black text-[#161616]">
           Popular
         </span>
       ) : null}
-      <div className="grid min-h-[176px] grid-cols-[1fr_150px] gap-3">
+      <div className="grid min-h-[130px] grid-cols-[1fr_115px] gap-2.5">
         <div className="flex flex-col justify-between">
           <div>
-            <h3 className="text-xl font-black text-[#161616]">{item.name}</h3>
-            <p className="mt-4 line-clamp-3 text-sm font-bold leading-6 text-[#767676]">
+            <h3 className="text-sm font-black leading-tight text-[#161616]">{item.name}</h3>
+            <p className="mt-1.5 line-clamp-3 text-xs font-bold leading-5 text-[#767676]">
               {item.description}
             </p>
           </div>
-          <p className="mt-4 text-lg font-black text-[#161616]">From {formatPrice(item.price)}</p>
+          <p className="mt-2 text-sm font-black text-[#161616]">From {formatPrice(item.price)}</p>
         </div>
-        <div className="relative min-h-[150px]">
+        <div className="relative min-h-[115px]">
           <Image
             alt={item.name}
-            className="rounded-[20px] object-cover"
+            className="rounded-[14px] object-cover"
             fill
-            sizes="(max-width: 640px) 45vw, 150px"
+            sizes="(max-width: 640px) 40vw, 115px"
             src={item.image}
           />
           <button
             aria-label={`Add ${item.name}`}
-            className="add-orbit focus-ring absolute -bottom-1 -right-1 grid h-12 w-12 place-items-center rounded-full border-2 border-transparent bg-[#ffdd00] text-[#161616] shadow-lift"
+            className="add-orbit focus-ring absolute -bottom-1 -right-1 grid h-9 w-9 place-items-center rounded-full border-2 border-transparent bg-[#ffdd00] text-[#161616] shadow-lift"
             onClick={() => onOpen(item)}
             type="button"
           >
-            <Plus size={24} />
+            <Plus size={18} />
           </button>
         </div>
       </div>
@@ -1794,58 +1869,60 @@ function FloatingWhatsApp({ raised }: { raised: boolean }) {
 
 function Footer() {
   return (
-    <footer className="border-t-2 border-transparent bg-white px-4 pb-28 pt-12 text-[#161616]">
-      <div className="mx-auto grid w-full max-w-[1180px] gap-8 lg:grid-cols-[1fr_1.15fr_0.85fr]">
-        <div>
-          <BrandMark className="animate-float-slow h-24 w-24 border-transparent" />
-          <h2 className="mt-5 text-3xl font-black text-[#161616]">Flavour Heaven</h2>
-          <p className="mt-3 max-w-sm text-sm font-bold leading-6 text-[#4f4f4f]">
-            Pizza, burgers, shawarma, wings, and loaded sides from E-11/3 Markaz. Delivered hot,
-            packed for pickup, or served to your car.
-          </p>
+    <footer className="border-t-2 border-transparent bg-white px-4 pb-24 pt-10 text-[#161616]">
+      <div className="mx-auto flex w-full max-w-md flex-col items-center text-center">
+        <BrandMark className="animate-float-slow h-16 w-16 border-transparent" />
+        <h2 className="mt-3 text-xl font-black text-[#161616]">Flavour Heaven</h2>
+        <p className="mt-2 max-w-sm text-xs font-bold leading-5 text-[#4f4f4f]">
+          Pizza, burgers, shawarma, wings, and loaded sides from E-11/3 Markaz. Delivered hot,
+          packed for pickup, or served to your car.
+        </p>
+
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs font-bold text-[#4f4f4f]">
+          <a className="hover:text-[#161616]" href={`tel:${shopPhone}`}>
+            {shopPhone}
+          </a>
+          <span aria-hidden="true" className="h-1 w-1 rounded-full bg-[#d6d3d1]" />
+          <span>{branchAddress}</span>
+          <span aria-hidden="true" className="h-1 w-1 rounded-full bg-[#d6d3d1]" />
+          <span>Open 24/7</span>
         </div>
-        <div className="grid gap-3 text-sm font-bold">
-          <div className="hover-lift rounded-[20px] border-2 border-transparent bg-[#fff9dc] p-4">
-            <p className="text-xs font-black uppercase text-[#161616]">Call</p>
-            <a className="mt-1 block text-lg font-black text-[#161616]" href={`tel:${shopPhone}`}>
-              {shopPhone}
-            </a>
-          </div>
-          <div className="hover-lift rounded-[20px] border-2 border-transparent bg-[#fff9dc] p-4">
-            <p className="text-xs font-black uppercase text-[#161616]">Visit</p>
-            <p className="mt-1 text-[#4f4f4f]">{branchAddress}</p>
-          </div>
-          <div className="hover-lift rounded-[20px] border-2 border-transparent bg-[#fff9dc] p-4">
-            <p className="text-xs font-black uppercase text-[#161616]">Hours</p>
-            <p className="mt-1 text-[#4f4f4f]">Open 24/7 for late cravings and family orders.</p>
-          </div>
+
+        <div className="mt-6 flex gap-3">
+          <a
+            aria-label="Flavour Heaven on Facebook"
+            className="hover-lift icon-bounce focus-ring grid h-10 w-10 place-items-center rounded-full border-2 border-transparent bg-[#ffdd00] text-[#161616]"
+            href="https://www.facebook.com/"
+            rel="noreferrer"
+            target="_blank"
+          >
+            <FacebookIcon />
+          </a>
+          <a
+            aria-label="Flavour Heaven on Instagram"
+            className="hover-lift icon-bounce focus-ring grid h-10 w-10 place-items-center rounded-full border-2 border-transparent bg-[#ffdd00] text-[#161616]"
+            href="https://www.instagram.com/"
+            rel="noreferrer"
+            target="_blank"
+          >
+            <InstagramIcon />
+          </a>
+          <a
+            aria-label="Chat with Flavour Heaven on WhatsApp"
+            className="hover-lift icon-bounce focus-ring grid h-10 w-10 place-items-center rounded-full border-2 border-transparent bg-[#ffdd00] text-[#161616]"
+            href={floatingWhatsappUrl}
+            rel="noreferrer"
+            target="_blank"
+          >
+            <MessageCircle size={17} />
+          </a>
         </div>
-        <div>
-          <p className="text-lg font-black text-[#161616]">Follow Us</p>
-          <div className="mt-4 flex gap-3">
-            <a
-              aria-label="Flavour Heaven on Facebook"
-              className="hover-lift icon-bounce focus-ring grid h-11 w-11 place-items-center rounded-full border-2 border-transparent bg-[#ffdd00] text-sm font-black text-[#161616]"
-              href="https://www.facebook.com/"
-              rel="noreferrer"
-              target="_blank"
-            >
-              f
-            </a>
-            <a
-              aria-label="Flavour Heaven on Instagram"
-              className="hover-lift icon-bounce focus-ring grid h-11 w-11 place-items-center rounded-full border-2 border-transparent bg-[#ffdd00] text-sm font-black text-[#161616]"
-              href="https://www.instagram.com/"
-              rel="noreferrer"
-              target="_blank"
-            >
-              ig
-            </a>
-          </div>
-          <p className="mt-6 max-w-xs text-sm font-bold leading-6 text-[#4f4f4f]">
-            Order tracking is private and opens only from the secure link created after checkout.
-          </p>
-        </div>
+
+        <div className="mt-8 h-px w-full max-w-xs bg-[#e7e5e4]" />
+
+        <p className="mt-6 max-w-xs text-xs font-bold leading-5 text-[#78716c]">
+          Order tracking is private and opens only from the secure link created after checkout.
+        </p>
       </div>
     </footer>
   );
