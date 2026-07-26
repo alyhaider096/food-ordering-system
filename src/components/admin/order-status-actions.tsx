@@ -79,10 +79,10 @@ export function OrderStatusActions({
   }
 
   return (
-    <div className="rounded-2xl border border-[#f1d400] bg-[#fff9dc] p-4">
+    <div className="rounded-2xl border border-transparent bg-[#fff9dc] p-4">
       <p className="font-black text-[#292524]">Status actions</p>
       {nextStatuses.includes("CONFIRMED") ? (
-        <p className="mt-2 rounded-2xl border border-[#f1d400] bg-white px-4 py-3 text-sm font-bold text-[#57534e]">
+        <p className="mt-2 rounded-2xl border border-transparent bg-white px-4 py-3 text-sm font-bold text-[#57534e]">
           Confirming this order opens WhatsApp in a new tab with the confirmation message ready
           to send to the customer.
         </p>
@@ -110,7 +110,7 @@ export function OrderStatusActions({
               className={`focus-ring inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 font-black ${
                 isCancel
                   ? "bg-[#dc2626] text-white"
-                  : "border-2 border-[#161616] bg-[#ffdd00] text-[#161616]"
+                  : "border-2 border-transparent bg-[#ffdd00] text-[#161616]"
               } disabled:bg-[#e7e5e4] disabled:text-[#a8a29e]`}
               disabled={Boolean(pendingStatus)}
               key={status}

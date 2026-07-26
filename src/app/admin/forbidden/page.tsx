@@ -4,7 +4,7 @@ export default function ForbiddenPage() {
   return (
     <main className="min-h-screen bg-[#fafaf9]">
       <section className="fh-container flex min-h-screen items-center justify-center py-10">
-        <div className="w-full max-w-xl rounded-3xl border border-[#f1d400] bg-white p-6 text-center shadow-warm">
+        <div className="w-full max-w-xl rounded-3xl border border-transparent bg-white p-6 text-center shadow-warm">
           <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#fff9dc] text-[#161616]">
             <LockKeyhole size={26} />
           </div>

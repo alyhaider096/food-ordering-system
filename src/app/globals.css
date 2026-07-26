@@ -31,20 +31,15 @@ body {
     linear-gradient(180deg, #fffdf0 0%, var(--background) 38rem);
   color: var(--foreground);
   font-family:
-    "Aptos Display",
-    "Aptos",
-    "Nunito Sans",
-    "Segoe UI Variable",
-    Poppins,
-    "Inter var",
-    Inter,
+    var(--font-sans),
     ui-sans-serif,
     system-ui,
     -apple-system,
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
-  font-feature-settings: "cv02", "cv03", "cv04", "kern";
+  font-feature-settings: "kern";
+  font-variant-numeric: tabular-nums;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -52,19 +47,35 @@ body {
 
 h1,
 h2,
+h3 {
+  font-family: var(--font-display), Georgia, "Times New Roman", serif;
+  font-optical-sizing: auto;
+  letter-spacing: -0.01em;
+}
+
+/* Fraunces reads more "artisanal" a touch lighter than the UI's black weight, so
+   headings override font-black (900) down into the 700-800 display range. The
+   h1.font-black selectors beat the bare .font-black utility on specificity. */
+h1,
+h1.font-black {
+  font-weight: 800;
+}
+
+h2,
+h2.font-black {
+  font-weight: 760;
+}
+
 h3,
-.font-black {
-  font-family:
-    "Aptos Display",
-    "Aptos",
-    "Nunito Sans",
-    "Segoe UI Variable",
-    Poppins,
-    "Inter var",
-    Inter,
-    ui-sans-serif,
-    system-ui,
-    sans-serif;
+h3.font-black {
+  font-weight: 720;
+}
+
+/* Opt a heading out of the serif display face and back into the Inter UI face.
+   Used for small chrome labels (drawer titles, section headers) where the serif
+   reads inconsistent. Class specificity beats the bare h1/h2/h3 family rule. */
+.font-body {
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
 button,
@@ -92,6 +103,32 @@ button {
 
 button:disabled {
   cursor: not-allowed;
+}
+
+/* Borders were removed site-wide, so form controls get a soft inset hairline to
+   stay legible as fields, and a stronger inset on focus (paired with .focus-ring). */
+input,
+select,
+textarea {
+  box-shadow: inset 0 0 0 1.5px rgba(22, 22, 22, 0.14);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  box-shadow: inset 0 0 0 2px rgba(22, 22, 22, 0.28);
+}
+
+/* Small stepper/segmented controls that used to rely on a border. */
+.control-outline {
+  box-shadow: inset 0 0 0 1.5px rgba(22, 22, 22, 0.14);
+}
+
+/* The header search input sits inside its own pill, so it opts out of the
+   default field hairline (including on focus). */
+.header-search input,
+.header-search input:focus {
+  box-shadow: none;
 }
 
 .fh-container {
@@ -327,18 +364,12 @@ button:disabled {
 }
 
 .menu-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: #bfa700 #fff4a8;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge/IE */
 }
 
 .menu-scrollbar::-webkit-scrollbar {
-  height: 8px;
-  width: 8px;
-}
-
-.menu-scrollbar::-webkit-scrollbar-thumb {
-  background: #161616;
-  border-radius: 999px;
+  display: none; /* Chrome / Safari */
 }
 
 

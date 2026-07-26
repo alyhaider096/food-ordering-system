@@ -36,7 +36,7 @@ export function LoginForm({ callbackUrl }: { callbackUrl: string }) {
 
   return (
     <form className="mt-6 space-y-4" onSubmit={submit}>
-      <div className="rounded-2xl border border-[#f1d400] bg-[#fff9dc] p-4">
+      <div className="rounded-2xl border border-transparent bg-[#fff9dc] p-4">
         <div className="flex items-center gap-2 font-black text-[#292524]">
           <LockKeyhole size={18} className="text-[#161616]" />
           Staff access

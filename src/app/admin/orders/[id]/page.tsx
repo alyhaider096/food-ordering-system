@@ -134,7 +134,7 @@ export default async function AdminOrderDetailPage({
               </div>
             </dl>
             {order.instructions ? (
-              <div className="mt-4 rounded-2xl border border-[#f1d400] bg-[#fff9dc] p-3">
+              <div className="mt-4 rounded-2xl border border-transparent bg-[#fff9dc] p-3">
                 <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#161616]">
                   Instructions
                 </p>

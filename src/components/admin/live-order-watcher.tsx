@@ -94,7 +94,7 @@ export function LiveOrderWatcher({ initialOrders }: { initialOrders: KnownOrder[
         <Radio size={16} className="text-[#22c55e]" />
         Live - checking for new orders
         <button
-          className="ml-1 flex items-center gap-1 rounded-xl border border-[#e7e5e4] px-2 py-1 text-xs font-black text-[#292524] transition hover:border-[#fbbf24]"
+          className="ml-1 flex items-center gap-1 rounded-xl border border-[#e7e5e4] px-2 py-1 text-xs font-black text-[#292524] transition hover:border-transparent"
           onClick={toggleSound}
           type="button"
         >
@@ -104,7 +104,7 @@ export function LiveOrderWatcher({ initialOrders }: { initialOrders: KnownOrder[
       </div>
 
       {toast ? (
-        <div className="fixed right-4 top-4 z-50 animate-pulse rounded-2xl border border-[#f1d400] bg-[#fff9dc] px-4 py-3 font-black text-[#161616] shadow-lg">
+        <div className="fixed right-4 top-4 z-50 animate-pulse rounded-2xl border border-transparent bg-[#fff9dc] px-4 py-3 font-black text-[#161616] shadow-lg">
           {toast}
         </div>
       ) : null}

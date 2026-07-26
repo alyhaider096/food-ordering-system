@@ -114,7 +114,7 @@ export function DeliveryZoneManager({ zones }: { zones: Zone[] }) {
         </div>
       ))}
 
-      <div className="rounded-2xl border border-dashed border-[#161616]/20 bg-white p-3">
+      <div className="rounded-2xl border border-dashed border-transparent/20 bg-white p-3">
         <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#78716c]">New zone</p>
         <div className="mt-2 grid grid-cols-2 gap-2">
           <input

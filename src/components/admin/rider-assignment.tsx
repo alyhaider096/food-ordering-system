@@ -75,7 +75,7 @@ export function RiderAssignment({
   }
 
   return (
-    <section className="rounded-2xl border border-[#f1d400] bg-[#fff9dc] p-4">
+    <section className="rounded-2xl border border-transparent bg-[#fff9dc] p-4">
       <div className="flex items-center gap-2">
         <Bike className="text-[#161616]" size={19} />
         <p className="font-black text-[#292524]">Rider assignment</p>
