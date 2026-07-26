@@ -61,7 +61,7 @@ export function MenuItemCreateForm({ categories }: { categories: Array<{ id: str
   }
 
   return (
-    <article className="rounded-2xl border border-[#161616] bg-[#fff9dc] p-4">
+    <article className="rounded-2xl border border-transparent bg-[#fff9dc] p-4">
       <div className="flex items-center justify-between">
         <p className="font-black text-[#292524]">New menu item</p>
         <button

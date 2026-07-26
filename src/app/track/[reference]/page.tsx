@@ -1,6 +1,7 @@
 ﻿import { CheckCircle2, Clock, CookingPot, LockKeyhole, PackageCheck, Truck } from "lucide-react";
 import { formatPrice } from "@/lib/cart";
 import { getOrderTracking } from "@/server/orders/order-service";
+import { TrackingAutoRefresh } from "./auto-refresh";
 
 const baseSteps = [
   { label: "Pending", icon: Clock },
@@ -8,6 +9,18 @@ const baseSteps = [
   { label: "Preparing", icon: CookingPot },
   { label: "Ready", icon: PackageCheck },
 ];
+
+const TERMINAL_STATUSES = ["Completed", "Cancelled"];
+
+function formatEventTime(iso: string) {
+  return new Date(iso).toLocaleString("en-PK", {
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "short",
+    timeZone: "Asia/Karachi",
+  });
+}
 
 export default async function TrackingPage({
   params,
@@ -24,8 +37,8 @@ export default async function TrackingPage({
     return (
       <main className="min-h-screen bg-[#fff9dc]">
         <section className="fh-container flex min-h-screen items-center justify-center py-10">
-          <div className="w-full max-w-xl rounded-[28px] border-2 border-[#161616] bg-white p-6 text-center shadow-warm">
-            <div className="mx-auto grid h-14 w-14 place-items-center rounded-full border-2 border-[#161616] bg-[#ffdd00] text-[#161616]">
+          <div className="w-full max-w-xl rounded-[28px] border-2 border-transparent bg-white p-6 text-center shadow-warm">
+            <div className="mx-auto grid h-14 w-14 place-items-center rounded-full border-2 border-transparent bg-[#ffdd00] text-[#161616]">
               <LockKeyhole size={26} />
             </div>
             <p className="mt-5 text-sm font-bold uppercase tracking-[0.18em] text-[#161616]">
@@ -51,13 +64,18 @@ export default async function TrackingPage({
   const steps =
     order.orderType === "delivery" ? [...baseSteps, { label: "Out For Delivery", icon: Truck }, { label: "Completed", icon: CheckCircle2 }] : [...baseSteps, { label: "Completed", icon: CheckCircle2 }];
   const currentIndex = steps.findIndex((step) => step.label === order.status);
+  const eventByStatus = new Map(order.events.map((event) => [event.status, event]));
+  const isLive = !TERMINAL_STATUSES.includes(order.status);
+  const estimatedReadyLabel =
+    order.estimatedReadyAt && isLive ? formatEventTime(order.estimatedReadyAt) : null;
 
   return (
     <main className="min-h-screen bg-[#fff9dc]">
       <section className="fh-container flex min-h-screen items-center justify-center py-10">
-        <div className="w-full max-w-3xl rounded-[28px] border-2 border-[#161616] bg-white p-6 shadow-warm">
+        <div className="w-full max-w-3xl rounded-[28px] border-2 border-transparent bg-white p-6 shadow-warm">
+          <TrackingAutoRefresh active={isLive} />
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#161616]">
-            Live tracking
+            {isLive ? "Live tracking" : "Order tracking"}
           </p>
           <div className="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div>
@@ -67,9 +85,16 @@ export default async function TrackingPage({
                 {order.deliveryArea ? ` - ${order.deliveryArea}` : ""}
               </p>
             </div>
-            <span className="rounded-full bg-[#fff9dc] px-4 py-2 text-sm font-black text-[#161616]">
-              {order.status}
-            </span>
+            <div className="flex flex-col items-start gap-1 md:items-end">
+              <span className="rounded-full bg-[#fff9dc] px-4 py-2 text-sm font-black text-[#161616]">
+                {order.status}
+              </span>
+              {estimatedReadyLabel ? (
+                <span className="text-xs font-bold text-[#78716c]">
+                  Estimated ready by {estimatedReadyLabel}
+                </span>
+              ) : null}
+            </div>
           </div>
 
           <div className="mt-8 grid gap-5 lg:grid-cols-[1fr_280px]">
@@ -77,6 +102,7 @@ export default async function TrackingPage({
               {steps.map((step, index) => {
                 const Icon = step.icon;
                 const done = currentIndex >= index;
+                const stepEvent = eventByStatus.get(step.label);
                 return (
                   <div
                     className={`flex items-center gap-4 rounded-2xl border p-4 ${
@@ -91,10 +117,18 @@ export default async function TrackingPage({
                     >
                       <Icon size={21} />
                     </span>
-                    <div>
-                      <p className="font-black text-[#292524]">{step.label}</p>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                        <p className="font-black text-[#292524]">{step.label}</p>
+                        {stepEvent ? (
+                          <p className="text-xs font-bold text-[#78716c]">
+                            {formatEventTime(stepEvent.createdAt)}
+                          </p>
+                        ) : null}
+                      </div>
                       <p className="text-sm text-[#78716c]">
-                        {done ? "Updated by Flavour Heaven staff" : "Waiting for next update"}
+                        {stepEvent?.note ??
+                          (done ? "Updated by Flavour Heaven staff" : "Waiting for next update")}
                       </p>
                     </div>
                   </div>
@@ -102,7 +136,7 @@ export default async function TrackingPage({
               })}
             </div>
 
-            <aside className="h-fit rounded-2xl border border-[#f1d400] bg-[#fff9dc] p-4">
+            <aside className="h-fit rounded-2xl border border-transparent bg-[#fff9dc] p-4">
               <p className="font-black text-[#292524]">Order summary</p>
               {order.lines.length ? (
                 <>
@@ -123,7 +157,7 @@ export default async function TrackingPage({
                       </div>
                     ))}
                   </div>
-                  <div className="mt-4 space-y-2 border-t border-[#f1d400] pt-4 text-sm">
+                  <div className="mt-4 space-y-2 border-t border-transparent pt-4 text-sm">
                     <div className="flex justify-between text-[#78716c]">
                       <span>Subtotal</span>
                       <span>{formatPrice(order.totals.subtotal)}</span>

@@ -72,7 +72,7 @@ export function MenuItemEditor({ item }: { item: EditableItem }) {
   if (!open) {
     return (
       <button
-        className="inline-flex items-center gap-2 rounded-2xl border border-[#f1d400] bg-[#fff9dc] px-4 py-2 font-black text-[#161616]"
+        className="inline-flex items-center gap-2 rounded-2xl border border-transparent bg-[#fff9dc] px-4 py-2 font-black text-[#161616]"
         onClick={() => setOpen(true)}
         type="button"
       >

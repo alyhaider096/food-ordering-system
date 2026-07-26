@@ -152,7 +152,7 @@ export function StaffManager({ staff, currentStaffId }: { staff: StaffMember[]; 
         ))}
       </div>
 
-      <aside className="rounded-2xl border border-[#f1d400] bg-[#fff9dc] p-4">
+      <aside className="rounded-2xl border border-transparent bg-[#fff9dc] p-4">
         <p className="font-black text-[#292524]">Invite staff</p>
         <div className="mt-3 grid gap-2">
           <input

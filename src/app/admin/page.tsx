@@ -68,7 +68,7 @@ export default async function AdminDashboardPage() {
               Customer page
             </a>
             <a
-              className="rounded-2xl border border-[#f1d400] bg-[#fff9dc] px-4 py-2 font-black text-[#161616]"
+              className="rounded-2xl border border-transparent bg-[#fff9dc] px-4 py-2 font-black text-[#161616]"
               href="/admin/menu"
             >
               Menu manager
@@ -143,7 +143,7 @@ export default async function AdminDashboardPage() {
                   {statusOrders.length ? (
                     statusOrders.map((order) => (
                       <a
-                        className="block rounded-xl border border-[#e7e5e4] bg-[#fafaf9] p-3 transition hover:border-[#fbbf24] hover:bg-[#fff9dc]"
+                        className="block rounded-xl border border-[#e7e5e4] bg-[#fafaf9] p-3 transition hover:border-transparent hover:bg-[#fff9dc]"
                         href={`/admin/orders/${order.id}`}
                         key={order.id}
                       >
@@ -166,7 +166,7 @@ export default async function AdminDashboardPage() {
           })}
         </div>
 
-        <aside className="h-fit rounded-2xl border border-[#f1d400] bg-[#fff9dc] p-5">
+        <aside className="h-fit rounded-2xl border border-transparent bg-[#fff9dc] p-5">
           <div className="flex items-center gap-3">
             <ShieldCheck className="text-[#161616]" />
             <h2 className="text-xl font-black text-[#292524]">Role security</h2>

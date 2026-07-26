@@ -121,7 +121,7 @@ export default async function AdminMenuPage() {
             )}
           </section>
 
-          <section className="rounded-2xl border border-[#f1d400] bg-[#fff9dc] p-4">
+          <section className="rounded-2xl border border-transparent bg-[#fff9dc] p-4">
             <h2 className="font-black text-[#292524]">Delivery zones</h2>
             {menu.source === "database" ? (
               <DeliveryZoneManager zones={menu.deliveryAreas} />

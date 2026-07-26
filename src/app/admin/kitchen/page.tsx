@@ -71,7 +71,7 @@ export default async function KitchenBoardPage() {
                 ))}
               </ul>
 
-              <div className="mt-5 rounded-2xl border border-[#f1d400] bg-[#fff9dc] p-4">
+              <div className="mt-5 rounded-2xl border border-transparent bg-[#fff9dc] p-4">
                 <p className="text-sm font-bold uppercase tracking-[0.12em] text-[#161616]">
                   Notes
                 </p>
